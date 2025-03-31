@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -9,8 +11,6 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 file_url = "https://raw.githubusercontent.com/dhruv5678232/Airport-footfall-predictor/main/Airport_Flight_Data_Final_Updated.csv"
 try:
     df = pd.read_csv(file_url)
-    st.write("Dataset Loaded Successfully")
-    st.write(df.head())  # Display first few rows for debugging
     
     # ✅ Convert all column names to lowercase (Fix inconsistent column names)
     df.columns = df.columns.str.lower()
@@ -77,6 +77,16 @@ try:
         st.sidebar.write(f"R² Score: {r2:.2f}")
 
         st.sidebar.success("Model Trained Successfully ✅")
+        
+        # ✅ Visualization Column
+        st.subheader("Data Visualization")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.lineplot(x=df["year"], y=df["actual_footfall"], marker="o", label="Actual Footfall", ax=ax)
+        sns.lineplot(x=df["year"], y=df["predicted_footfall"], marker="s", label="Predicted Footfall", ax=ax)
+        plt.xlabel("Year")
+        plt.ylabel("Footfall")
+        plt.legend()
+        st.pyplot(fig)
     else:
         st.sidebar.error("Missing columns required for model training.")
 except Exception as e:
