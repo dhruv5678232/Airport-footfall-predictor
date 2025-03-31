@@ -51,10 +51,12 @@ try:
         if col in df:
             df[col] = df[col].astype("category").cat.codes  # Converts categories to numbers
 
-    # Extract historical footfall trends
+    # ✅ Fix Date Parsing Issue
     if "Date" in df:
-        df["Date"] = pd.to_datetime(df["Date"])
-        df["Year"] = df["Date"].dt.year  # Ensure Year column exists
+        df["Date"] = pd.to_datetime(df["Date"], format="%d-%m-%Y", errors="coerce")  # Fix date format
+        df["Year"] = df["Date"].dt.year  # Extract Year from Date
+
+        # Extract historical trends
         df["Monthly_Trend"] = df.groupby(["Airport", df["Date"].dt.month])["Predicted_footfall"].transform("mean")
 
         st.sidebar.write("Historical Footfall Trends Extracted ✅")
