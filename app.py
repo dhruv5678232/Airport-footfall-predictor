@@ -115,4 +115,18 @@ if all(col in df_encoded.columns for col in features + [target]):
     is_weekend_code = 0 if selected_weekday == "Weekday" else 1
 
     input_data = pd.DataFrame({
-        "airport": [airport
+        "airport": [airport_code],
+        "season": [season_code],
+        "flight_type": [flight_type_code],
+        "year": [selected_year],
+        "is_weekend": [is_weekend_code],
+        "load_factor (%)": [df["load_factor (%)"].mean()],  # Use mean as placeholder
+        "total_flights": [df["total_flights"].mean()]       # Use mean as placeholder
+    })
+
+    predicted_footfall = model.predict(input_data)[0]
+    st.write(f"### Predicted Footfall: {predicted_footfall:.0f}")
+
+else:
+    st.sidebar.error("Missing columns required for model training.")
+    st.write("Available columns:", df.columns.tolist())
