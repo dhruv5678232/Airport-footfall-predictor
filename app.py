@@ -7,20 +7,18 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Load dataset (using the provided data instead of GitHub for this example)
-# For your actual app, replace this with the GitHub URL or local file path
-df = pd.read_csv("path_to_your_csv_file.csv")  # Replace with your local file or GitHub URL
-# file_url = "https://raw.githubusercontent.com/dhruv5678232/Airport-footfall-predictor/main/Airport_Flight_Data_Final_Updated.csv"
-# df = pd.read_csv(file_url)
+# Load dataset from GitHub
+file_url = "https://raw.githubusercontent.com/dhruv5678232/Airport-footfall-predictor/main/Airport_Flight_Data_Final_Updated.csv"
+df = pd.read_csv(file_url)
 
 # Convert column names to lowercase
 df.columns = df.columns.str.lower()
 
 # Feature Engineering
-# Convert 'date' to datetime for potential use in the model (though we'll keep it as-is for features)
+# Convert 'date' to datetime for potential use in the model
 df['date'] = pd.to_datetime(df['date'], format='%d-%m-%Y')
 
-# Define required columns based on your instructions
+# Define required columns
 required_columns = ["airport", "season", "date", "is_weekend", "load_factor (%)"]
 
 if all(col in df.columns for col in required_columns):
@@ -29,7 +27,7 @@ if all(col in df.columns for col in required_columns):
     for col in categorical_cols:
         df[col] = df[col].astype("category").cat.codes
 
-    # Since 'date' is datetime, convert it to a numeric representation (e.g., ordinal)
+    # Convert 'date' to numeric representation (ordinal)
     df['date_numeric'] = df['date'].map(lambda x: x.toordinal())
 
     # Select Relevant Features
@@ -63,15 +61,4 @@ if all(col in df.columns for col in required_columns):
     # Visualization Column
     st.subheader("Data Visualization")
     fig, ax = plt.subplots(figsize=(8, 5))
-    # Plot actual footfall over date
-    sns.lineplot(x=df["date"], y=df["actual_footfall"], marker="o", label="Actual Footfall", ax=ax)
-    # Since 'predicted_footfall' exists in the dataset, use it for comparison
-    sns.lineplot(x=df["date"], y=df["predicted_footfall"], marker="s", label="Predicted Footfall (Original)", ax=ax)
-    plt.xlabel("Date")
-    plt.ylabel("Footfall")
-    plt.legend()
-    st.pyplot(fig)
-
-else:
-    missing_cols = [col for col in required_columns if col not in df.columns]
-    st.error(f"Missing required columns: {', '.join(missing_cols)}")
+    sns.lineplot(x=df["date
