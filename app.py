@@ -20,7 +20,7 @@ except Exception as e:
 if "date" in df.columns:
     df['date'] = pd.to_datetime(df['date'], format='%d-%m-%Y', errors='coerce')
     df = df.dropna(subset=['date'])  # Remove rows with invalid dates
-    df['year'] = df['date'].dt.year  # Extract year
+    df['year'] = df['date'].dt.year.astype('Int64')  # Extract year as integer
 else:
     st.error("Date column not found in the dataset.")
     st.stop()
