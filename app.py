@@ -7,11 +7,14 @@ file_url = "https://raw.githubusercontent.com/dhruv5678232/Airport-footfall-pred
 try:
     df = pd.read_csv(file_url)
 
+    # ✅ Convert all column names to lowercase (Fix inconsistent column names)
+    df.columns = df.columns.str.lower()
+
     # Extract unique values
-    airports = df["Airport"].dropna().unique().tolist()
-    seasons = df["Season"].dropna().unique().tolist() if "Season" in df else ["Summer", "Monsoon", "Winter"]
+    airports = df["airport"].dropna().unique().tolist()
+    seasons = df["season"].dropna().unique().tolist() if "season" in df else ["Summer", "Monsoon", "Winter"]
     flight_types = ["Domestic", "International"]
-    years = sorted(df["Year"].dropna().unique().tolist()) if "Year" in df else []
+    years = sorted(df["year"].dropna().unique().tolist()) if "year" in df else []
     weekday_options = ["Weekday", "Weekend"]
 
     # Streamlit UI
@@ -36,28 +39,28 @@ try:
     st.sidebar.header("Feature Engineering")
 
     # Handle missing values (fill with median)
-    for col in ["Load_factor", "Predicted_footfall", "Actual_footfall"]:
+    for col in ["load_factor", "predicted_footfall", "actual_footfall"]:
         if col in df:
             df[col].fillna(df[col].median(), inplace=True)
 
     # Compute seasonal average footfall per airport
-    if "Predicted_footfall" in df and "Season" in df:
-        seasonal_footfall = df.groupby(["Airport", "Season"])["Predicted_footfall"].mean().reset_index()
+    if "predicted_footfall" in df and "season" in df:
+        seasonal_footfall = df.groupby(["airport", "season"])["predicted_footfall"].mean().reset_index()
         st.sidebar.write("Seasonal Avg Footfall Computed ✅")
 
     # Encode categorical features for ML
-    categorical_cols = ["Airport", "Season", "Flight Type", "Weekday/Weekend"]
+    categorical_cols = ["airport", "season", "flight type", "weekday/weekend"]
     for col in categorical_cols:
         if col in df:
             df[col] = df[col].astype("category").cat.codes  # Converts categories to numbers
 
     # ✅ Fix Date Parsing Issue
-    if "Date" in df:
-        df["Date"] = pd.to_datetime(df["Date"], format="%d-%m-%Y", errors="coerce")  # Fix date format
-        df["Year"] = df["Date"].dt.year  # Extract Year from Date
+    if "date" in df:
+        df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y", errors="coerce")  # Fix date format
+        df["year"] = df["date"].dt.year  # Extract Year from Date
 
         # Extract historical trends
-        df["Monthly_Trend"] = df.groupby(["Airport", df["Date"].dt.month])["Predicted_footfall"].transform("mean")
+        df["monthly_trend"] = df.groupby(["airport", df["date"].dt.month])["predicted_footfall"].transform("mean")
 
         st.sidebar.write("Historical Footfall Trends Extracted ✅")
 
