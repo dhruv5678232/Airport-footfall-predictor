@@ -264,4 +264,4 @@ else:
 
 # Footer
 st.write("---")
-st.write("Built with ❤️ by Grok (xAI)")
+st.write("Built")
