@@ -7,7 +7,7 @@ import plotly.express as px
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from io import BytesIO  # Updated import
+from io import BytesIO, StringIO  # Updated import to include StringIO
 from datetime import datetime
 try:
     from reportlab.lib.pagesizes import letter
@@ -272,7 +272,7 @@ if all(col in df_encoded.columns for col in features + [target]):
     })
     
     # CSV Download
-    csv_buffer = io.StringIO()
+    csv_buffer = StringIO()  # Updated to use StringIO directly
     export_data.to_csv(csv_buffer, index=False)
     st.download_button(
         label="Download Predictions as CSV",
@@ -319,10 +319,11 @@ if all(col in df_encoded.columns for col in features + [target]):
 else:
     st.sidebar.error("Missing columns required for model training.")
     st.write("Available columns:", df.columns.tolist())
+    st.stop()
 
 # Footer
 st.write("---")
-st.write("Built")
+st.write("Built with ❤️ by Airport Footfall Predictor Team")
 
 # Feedback Form Section
 st.write("---")
