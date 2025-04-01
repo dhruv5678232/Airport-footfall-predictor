@@ -9,7 +9,11 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 # Load dataset
 file_url = "https://github.com/dhruv5678232/Airport-footfall-predictor/raw/main/Airport_Flight_Data_Cleaned.csv"
-df = pd.read_csv(file_url)
+try:
+    df = pd.read_csv(file_url)
+except Exception as e:
+    st.error(f"Error loading dataset: {e}")
+    st.stop()
 
 # Data Preprocessing
 df.columns = df.columns.str.lower()  # Ensure lowercase column names
@@ -30,7 +34,21 @@ airports = df["airport"].dropna().unique().tolist()
 seasons = df["season"].dropna().unique().tolist()
 flight_types = ["Domestic", "International"]
 weekday_options = ["Weekday", "Weekend"]
-years = sorted(df["year"].dropna().unique().tolist())
+
+# Debug the 'year' column
+if "year" not in df.columns:
+    st.error("The 'year' column is missing from the dataset.")
+    st.stop()
+
+# Ensure 'year' column is numeric and handle missing values
+df["year"] = pd.to_numeric(df["year"], errors='coerce')
+df = df.dropna(subset=["year"])  # Remove rows with invalid years
+years = sorted(df["year"].unique().tolist())
+
+# Debug output
+st.sidebar.write("Debug: Unique years in dataset =", years)
+st.sidebar.write("Debug: Number of unique years =", len(years))
+
 weather_options = ["Bad", "Good"]
 economic_trend_min, economic_trend_max = df["economic_trend"].min(), df["economic_trend"].max()
 temperature_min, temperature_max = int(df["temperature"].min()), int(df["temperature"].max())
@@ -48,9 +66,12 @@ selected_airport = st.sidebar.selectbox("Select Airport:", airports)
 selected_season = st.sidebar.selectbox("Select Season:", seasons)
 selected_flight_type = st.sidebar.selectbox("Select Flight Type:", flight_types)
 
-# Handle the year selection (fix for StreamlitAPIException)
-if len(years) == 1:
-    selected_year = years[0]
+# Handle the year selection
+if len(years) == 0:
+    st.sidebar.error("No valid years found in the dataset.")
+    st.stop()
+elif len(years) == 1:
+    selected_year = int(years[0])  # Ensure integer
     st.sidebar.write(f"Year: {selected_year} (Only one year available in the dataset)")
 else:
     selected_year = st.sidebar.slider("Select Year:", min_value=int(min(years)), max_value=int(max(years)), step=1)
@@ -282,4 +303,4 @@ else:
 
 # Footer
 st.write("---")
-st.write("Built with ❤️ ")
+st.write("Built ")
