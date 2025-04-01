@@ -8,26 +8,18 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 # Load dataset
-file_path = "Airport_Flight_Data_Final_Updated.csv"
-try:
-    df = pd.read_csv(file_path)
-    df.columns = df.columns.str.lower()  # Normalize column names
-except Exception as e:
-    st.error(f"Error loading dataset: {e}")
-    st.stop()
+file_url = "https://github.com/dhruv5678232/Airport-footfall-predictor/raw/main/Airport_Flight_Data_Cleaned.csv"
+df = pd.read_csv(file_url)
+
+df.columns = df.columns.str.lower()  # Ensure lowercase column names
 
 # Ensure date column exists and parse it
-if "date" in df.columns:
-    df['date'] = pd.to_datetime(df['date'], format='%d-%m-%Y', errors='coerce')
-    df = df.dropna(subset=['date'])  # Remove rows with invalid dates
-    df['year'] = df['date'].dt.year.astype('Int64')  # Extract year as integer
-else:
-    st.error("Date column not found in the dataset.")
-    st.stop()
+df['date'] = pd.to_datetime(df['date'], errors='coerce')
+df = df.dropna(subset=['date'])  # Remove rows with invalid dates
 
 # Ensure required columns exist
 df.rename(columns={
-    "load_factor (%)": "load_factor",
+    "load_factor_(%)": "load_factor",
     "is_weekend": "weekday_weekend"
 }, inplace=True)
 
@@ -40,10 +32,6 @@ seasons = df["season"].dropna().unique().tolist()
 flight_types = ["Domestic", "International"]
 weekday_options = ["Weekday", "Weekend"]
 years = sorted(df["year"].dropna().unique().tolist())
-
-if not years:
-    st.error("No valid years found in the dataset.")
-    st.stop()
 
 # Streamlit UI
 st.title("Airport Footfall Prediction")
@@ -59,15 +47,13 @@ selected_weekday = st.sidebar.radio("Flight Day:", weekday_options)
 df_encoded = df.copy()
 df_encoded["airport"] = df_encoded["airport"].astype("category").cat.codes
 df_encoded["season"] = df_encoded["season"].astype("category").cat.codes
-df_encoded["weekday_weekend"] = df_encoded["weekday_weekend"].astype(int)  # Ensure it's integer
-
+df_encoded["weekday_weekend"] = df_encoded["weekday_weekend"].astype(int)
 df_encoded["flight_type"] = df_encoded["flight_type"].astype(int)
 
 # Select relevant features
 features = ["airport", "season", "flight_type", "year", "weekday_weekend", "load_factor", "total_flights"]
 target = "actual_footfall"
 
-# Ensure all required columns exist
 if all(col in df_encoded.columns for col in features + [target]):
     X = df_encoded[features]
     y = df_encoded[target]
