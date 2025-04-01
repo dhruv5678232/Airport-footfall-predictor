@@ -7,8 +7,14 @@ import plotly.express as px
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-import io
+from io import BytesIO, StringIO  # Updated import to include StringIO
 from datetime import datetime
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+except ImportError:
+    st.error("The 'reportlab' library is not installed. Please add 'reportlab' to your requirements.txt and redeploy the app.")
+    st.stop()
 
 # Load dataset
 file_url = "https://github.com/dhruv5678232/Airport-footfall-predictor/raw/main/Airport_Flight_Data_Cleaned.csv"
@@ -147,7 +153,7 @@ if all(col in df_encoded.columns for col in features + [target]):
 
     # Display Predicted Footfall with Confidence Interval
     st.subheader("Footfall Prediction")
-    st.write(f"### You can expect a footfall of {predicted_footfall:,.0f} ± {confidence_interval:,.0f}")
+    st.write(f"### You can expect a footfall of {predicted_footfall:,.0f} (plus or minus {confidence_interval:,.0f})")
 
     # Calculate Revenue
     base_fare = 77.50  # USD, one-way fare for Economy
@@ -173,6 +179,21 @@ if all(col in df_encoded.columns for col in features + [target]):
         st.write(f"### Estimated Daily Revenue: {revenue_crores:,.2f} Crores")
     else:
         st.write(f"### Estimated Daily Revenue: ₹{revenue_inr:,.2f}")
+
+    # Calculate average revenue for comparison
+    avg_footfall = df["actual_footfall"].mean()
+    avg_revenue_usd = avg_footfall * adjusted_fare  # Using the same adjusted_fare as for predicted revenue
+    avg_revenue_inr = avg_revenue_usd * exchange_rate
+
+    # Display a bar graph comparing average vs predicted revenue
+    st.subheader("Revenue Comparison")
+    fig = px.bar(
+        x=["Average Revenue", "Predicted Revenue"],
+        y=[avg_revenue_inr, revenue_inr],
+        labels={"x": "", "y": "Revenue (INR)"},
+        title="Average vs Predicted Revenue"
+    )
+    st.plotly_chart(fig)
 
     # Bar Graph for Instant Analysis
     st.subheader("Quick Footfall Analysis")
@@ -244,12 +265,14 @@ if all(col in df_encoded.columns for col in features + [target]):
     st.subheader("Export Predictions")
     export_data = pd.DataFrame({
         "Predicted Footfall": [predicted_footfall],
-        "Confidence Interval (±)": [confidence_interval],
+        "Confidence Interval (plus or minus)": [confidence_interval],
         "Estimated Revenue (INR)": [revenue_inr],
         "Future Year": [future_year],
         "Future Predicted Footfall": [future_predicted_footfall]
     })
-    csv_buffer = io.StringIO()
+    
+    # CSV Download
+    csv_buffer = StringIO()  # Updated to use StringIO directly
     export_data.to_csv(csv_buffer, index=False)
     st.download_button(
         label="Download Predictions as CSV",
@@ -258,10 +281,80 @@ if all(col in df_encoded.columns for col in features + [target]):
         mime="text/csv"
     )
 
+    # PDF Download
+    pdf_buffer = BytesIO()
+    c = canvas.Canvas(pdf_buffer, pagesize=letter)
+    c.setFont("Helvetica", 12)
+
+    # Add title
+    c.drawString(100, 750, "Airport Footfall Prediction Report")
+
+    # Add prediction data
+    y_position = 700
+    c.drawString(100, y_position, f"Predicted Footfall: {predicted_footfall:,.0f}")
+    y_position -= 20
+    c.drawString(100, y_position, f"Confidence Interval (plus or minus): {confidence_interval:,.0f}")
+    y_position -= 20
+    c.drawString(100, y_position, f"Estimated Revenue (INR): {revenue_inr:,.2f}")
+    y_position -= 20
+    c.drawString(100, y_position, f"Future Year: {future_year}")
+    y_position -= 20
+    c.drawString(100, y_position, f"Future Predicted Footfall: {future_predicted_footfall:,.0f}")
+
+    # Finalize the PDF
+    c.showPage()
+    c.save()
+
+    # Move the buffer position to the beginning
+    pdf_buffer.seek(0)
+
+    # Add PDF download button
+    st.download_button(
+        label="Download Predictions as PDF",
+        data=pdf_buffer,
+        file_name=f"footfall_predictions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+        mime="application/pdf"
+    )
+
 else:
     st.sidebar.error("Missing columns required for model training.")
     st.write("Available columns:", df.columns.tolist())
+    st.stop()
 
 # Footer
 st.write("---")
-st.write("Built")
+st.write("Built with ❤️ by Airport Footfall Predictor Team")
+
+# Feedback Form Section
+st.write("---")
+st.subheader("Feedback Form")
+st.write("We value your feedback! Please let us know about your experience.")
+
+# Define the questions
+questions = [
+    "Were you satisfied with our platform?",
+    "How much satisfied are you with the output?",
+    "Did our services satisfy your needs?",
+    "How quickly do you think you got your answer once the outputs were produced?",
+    "Did you like the feature of downloading using CSV or PDF, which saves time as well?"
+]
+
+# Create sliders for each question
+feedback_scores = {}
+for question in questions:
+    score = st.slider(
+        label=question,
+        min_value=1,
+        max_value=10,
+        value=5,  # Default to neutral
+        step=1,
+        format="%d",
+        help="1 = Dissatisfied, 5 = Neutral, 10 = Totally Satisfied"
+    )
+    feedback_scores[question] = score
+
+# Add a submit button
+if st.button("Submit Feedback"):
+    st.write("Thank you for your feedback!")
+    for question, score in feedback_scores.items():
+        st.write(f"{question}: {score}/10")
