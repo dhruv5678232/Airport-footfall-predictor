@@ -5,9 +5,3 @@ matplotlib
 seaborn
 scikit-learn
 plotly
-datetime
-mean_absolute_error
-mean_squared_error
-r2_score
-io
-plotly.express
