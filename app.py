@@ -7,7 +7,7 @@ import plotly.express as px
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from io import BytesIO, StringIO  # Updated import to include StringIO
+from io import BytesIO, StringIO
 from datetime import datetime
 try:
     from reportlab.lib.pagesizes import letter
@@ -65,7 +65,7 @@ mean_load_factor = df["load_factor"].mean()
 mean_economic_trend = df["economic_trend"].mean()
 
 # Streamlit UI
-st.title("AeroPredict Solutions - Airport Footfall Prediction and Analysis")
+st.title("Syncro - Airport Footfall Prediction and Analysis")  # Updated title
 st.sidebar.header("Input Parameters for Prediction")
 
 # User inputs
@@ -166,7 +166,7 @@ if all(col in df_encoded.columns for col in features + [target]):
     for class_type, proportion in class_distribution.items():
         fare = base_fare * fare_multipliers[class_type]
         weighted_fare += fare * proportion
-    adjusted_fare = weighted_fare * (1 + (fare_multipliers[selected_passenger_class] - 1) * 0.3)  # Adjust based on selected class
+    adjusted_fare = weighted_fare * (1 + (fare_multipliers[selected_passenger_class] - 1) * 0.3)
 
     # Convert to INR
     exchange_rate = 83  # 1 USD = 83 INR
@@ -182,7 +182,7 @@ if all(col in df_encoded.columns for col in features + [target]):
 
     # Calculate average revenue for comparison
     avg_footfall = df["actual_footfall"].mean()
-    avg_revenue_usd = avg_footfall * adjusted_fare  # Using the same adjusted_fare as for predicted revenue
+    avg_revenue_usd = avg_footfall * adjusted_fare
     avg_revenue_inr = avg_revenue_usd * exchange_rate
 
     # Display a bar graph comparing average vs predicted revenue
@@ -207,7 +207,7 @@ if all(col in df_encoded.columns for col in features + [target]):
     future_year = st.slider("Select a future year to predict footfall:", min_value=2025, max_value=2035, step=1, value=2030)
 
     # Calculate future footfall using a 3.8% annual growth rate
-    base_footfall = predicted_footfall  # 2024 predicted footfall
+    base_footfall = predicted_footfall
     growth_rate = 0.038  # 3.8% annual growth rate (IATA)
     years_range = range(2024, future_year + 1)
     future_footfalls = [base_footfall * (1 + growth_rate) ** (year - 2024) for year in years_range]
@@ -272,7 +272,7 @@ if all(col in df_encoded.columns for col in features + [target]):
     })
     
     # CSV Download
-    csv_buffer = StringIO()  # Updated to use StringIO directly
+    csv_buffer = StringIO()
     export_data.to_csv(csv_buffer, index=False)
     st.download_button(
         label="Download Predictions as CSV",
@@ -323,7 +323,7 @@ else:
 
 # Footer
 st.write("---")
-st.write("Built with ❤ by Airport Footfall Predictor Team")
+st.write("Built with ❤️ by Airport Footfall Predictor Team")
 
 # Feedback Form Section
 st.write("---")
