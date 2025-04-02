@@ -29,6 +29,23 @@ df.columns = df.columns.str.lower()  # Ensure lowercase column names
 df['date'] = pd.to_datetime(df['date'], errors='coerce')  # Parse dates
 df = df.dropna(subset=['date'])  # Remove rows with invalid dates
 
+# Make predictions on the test set
+y_pred = model.predict(X_test)
+
+# Calculate R-squared (R²) score
+r2 = r2_score(y_test, y_pred)
+
+# Display the result in Streamlit
+st.subheader("Model Performance Metrics")
+st.write(f"### R² Score: {r2:.4f}")
+
+# Interpretation
+if r2 >= 0.75:
+    st.success("Great! The model explains a high proportion of variance.")
+elif r2 >= 0.50:
+    st.warning("The model performs moderately well but could be improved.")
+else:
+    st.error("The model has low explanatory power. Consider feature tuning.")
 # Rename columns for consistency
 df.rename(columns={
     "load_factor_(%)": "load_factor",
