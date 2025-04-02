@@ -65,7 +65,7 @@ mean_load_factor = df["load_factor"].mean()
 mean_economic_trend = df["economic_trend"].mean()
 
 # Streamlit UI
-st.title("Syncro - Airport Footfall Prediction and Analysis")  # Updated title
+st.title("Syncro - Airport Footfall Prediction and Analysis")
 st.sidebar.header("Input Parameters for Prediction")
 
 # User inputs
@@ -118,6 +118,24 @@ if all(col in df_encoded.columns for col in features + [target]):
     # Train RandomForestRegressor
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
+
+    # Make predictions on the test set
+    y_pred = model.predict(X_test)
+
+    # Calculate R-squared (R²) score
+    r2 = r2_score(y_test, y_pred)
+
+    # Display the result in Streamlit
+    st.subheader("Model Performance Metrics")
+    st.write(f"### R² Score: {r2:.4f}")
+
+    # Interpretation
+    if r2 >= 0.75:
+        st.success("Great! The model explains a high proportion of variance.")
+    elif r2 >= 0.50:
+        st.warning("The model performs moderately well but could be improved.")
+    else:
+        st.error("The model has low explanatory power. Consider feature tuning.")
 
     # Predict for user input
     input_data = pd.DataFrame({
@@ -284,22 +302,180 @@ if all(col in df_encoded.columns for col in features + [target]):
     # PDF Download
     pdf_buffer = BytesIO()
     c = canvas.Canvas(pdf_buffer, pagesize=letter)
+    width, height = letter  # Page dimensions (612 x 792 points)
+
+    # Helper function to draw wrapped text
+    def draw_wrapped_text(canvas, text, x, y, max_width, line_height):
+        words = text.split()
+        lines = []
+        current_line = []
+        current_width = 0
+
+        for word in words:
+            word_width = canvas.stringWidth(word + " ", "Helvetica", 12)
+            if current_width + word_width <= max_width:
+                current_line.append(word)
+                current_width += word_width
+            else:
+                lines.append(" ".join(current_line))
+                current_line = [word]
+                current_width = word_width
+        if current_line:
+            lines.append(" ".join(current_line))
+
+        for line in lines:
+            canvas.drawString(x, y, line)
+            y -= line_height
+        return y
+
+    # Set font
+    c.setFont("Helvetica-Bold", 16)
+
+    # Page 1: Title and Introduction
+    c.drawString(100, 750, "Syncro - Airport Footfall Prediction Report")
+    c.setFont("Helvetica", 12)
+    y_position = 720
+
+    # Introduction
+    intro_text = (
+        f"This report provides a detailed analysis of predicted airport footfall for {selected_airport} "
+        f"based on the following inputs: Season: {selected_season}, Flight Type: {selected_flight_type}, "
+        f"Year: {selected_year}, Day: {selected_weekday}, Temperature: {selected_temperature}°C, "
+        f"Weather: {selected_weather}, Peak Season: {selected_peak_season}, Holiday: {selected_holiday}, "
+        f"Passenger Class: {selected_passenger_class}. The predictions are generated using a RandomForestRegressor model."
+    )
+    y_position = draw_wrapped_text(c, intro_text, 100, y_position, 400, 15)
+
+    # Section: Prediction Summary
+    y_position -= 20
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(100, y_position, "Prediction Summary")
+    y_position -= 20
     c.setFont("Helvetica", 12)
 
-    # Add title
-    c.drawString(100, 750, "Airport Footfall Prediction Report")
+    prediction_text = (
+        f"Predicted Footfall: {predicted_footfall:,.0f} passengers (Confidence Interval: ±{confidence_interval:,.0f})\n"
+        f"Estimated Daily Revenue: {'₹' + f'{revenue_inr:,.2f}' if revenue_inr <= 10000000 else f'{revenue_inr/10000000:,.2f} Crores'}\n"
+        f"Future Predicted Footfall (Year {future_year}): {future_predicted_footfall:,.0f} passengers"
+    )
+    for line in prediction_text.split("\n"):
+        c.drawString(100, y_position, line)
+        y_position -= 15
 
-    # Add prediction data
-    y_position = 700
-    c.drawString(100, y_position, f"Predicted Footfall: {predicted_footfall:,.0f}")
+    # Section: Model Performance
     y_position -= 20
-    c.drawString(100, y_position, f"Confidence Interval (plus or minus): {confidence_interval:,.0f}")
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(100, y_position, "Model Performance")
     y_position -= 20
-    c.drawString(100, y_position, f"Estimated Revenue (INR): {revenue_inr:,.2f}")
+    c.setFont("Helvetica", 12)
+
+    model_performance_text = (
+        f"R² Score: {r2:.4f}\n"
+        f"Interpretation: {('Great! The model explains a high proportion of variance.' if r2 >= 0.75 else 'The model performs moderately well but could be improved.' if r2 >= 0.50 else 'The model has low explanatory power. Consider feature tuning.')}"
+    )
+    for line in model_performance_text.split("\n"):
+        c.drawString(100, y_position, line)
+        y_position -= 15
+
+    # Check if we need a new page
+    if y_position < 100:
+        c.showPage()
+        y_position = 750
+        c.setFont("Helvetica", 12)
+
+    # Section: Contextual Analysis
     y_position -= 20
-    c.drawString(100, y_position, f"Future Year: {future_year}")
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(100, y_position, "Contextual Analysis")
     y_position -= 20
-    c.drawString(100, y_position, f"Future Predicted Footfall: {future_predicted_footfall:,.0f}")
+    c.setFont("Helvetica", 12)
+
+    # Analyze user inputs and provide insights
+    avg_airport_footfall = df[df["airport"] == selected_airport]["actual_footfall"].mean()
+    context_analysis = (
+        f"For {selected_airport}, the predicted footfall of {predicted_footfall:,.0f} passengers is "
+        f"{'above' if predicted_footfall > avg_airport_footfall else 'below'} the historical average of {avg_airport_footfall:,.0f} passengers. "
+        f"Given that you selected a {selected_weekday.lower()} during {selected_season} with {selected_weather.lower()} weather, "
+        f"{'and considering it is a peak season' if selected_peak_season == 'Yes' else ''} "
+        f"{'and a holiday period' if selected_holiday == 'Yes' else ''}, "
+        f"the demand for airport services is expected to be "
+        f"{'significantly high' if (selected_weekday == 'Weekend' or selected_peak_season == 'Yes' or selected_holiday == 'Yes') else 'moderate'}. "
+        f"The temperature of {selected_temperature}°C'sensitive to temperature, with optimal conditions around 25°C. Weekends show a significant increase, suggesting higher demand for leisure travel."
+    )
+    y_position = draw_wrapped_text(c, context_analysis, 100, y_position, 400, 15)
+
+    # Check if we need a new page
+    if y_position < 100:
+        c.showPage()
+        y_position = 750
+        c.setFont("Helvetica", 12)
+
+    # Section: Operational Recommendations
+    y_position -= 20
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(100, y_position, "Operational Recommendations")
+    y_position -= 20
+    c.setFont("Helvetica", 12)
+
+    recommendations = (
+        f"1. **Staffing and Logistics**: With a predicted footfall of {predicted_footfall:,.0f}, ensure adequate staffing for check-in counters, security, and customer service, especially since it’s a {selected_weekday.lower()} "
+        f"{'during peak season' if selected_peak_season == 'Yes' else ''}. Consider increasing ground staff by 20-30% if footfall exceeds historical averages.\n"
+        f"2. **Resource Allocation**: The {selected_flight_type.lower()} flight focus suggests prioritizing {'domestic terminal operations' if selected_flight_type == 'Domestic' else 'international terminal operations, including customs and immigration services'}. "
+        f"For {selected_passenger_class.lower()} passengers, {'ensure availability of budget amenities' if selected_passenger_class == 'Economy' else 'enhance premium services like lounges and fast-track security'}.\n"
+        f"3. **Weather Preparedness**: With {selected_weather.lower()} weather and a temperature of {selected_temperature}°C, "
+        f"{'prepare for potential delays by coordinating with airlines' if selected_weather == 'Bad' else 'leverage the pleasant conditions to enhance passenger experience with outdoor amenities'}.\n"
+        f"4. **Marketing Opportunities**: Given the {'high' if (selected_weekday == 'Weekend' or selected_peak_season == 'Yes' or selected_holiday == 'Yes') else 'moderate'} demand, consider targeted promotions for {selected_passenger_class.lower()} travelers to maximize revenue."
+    )
+    y_position = draw_wrapped_text(c, recommendations, 100, y_position, 400, 15)
+
+    # Check if we need a new page
+    if y_position < 100:
+        c.showPage()
+        y_position = 750
+        c.setFont("Helvetica", 12)
+
+    # Section: Sensitivity Analysis
+    y_position -= 20
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(100, y_position, "Contextual Analysis")
+    y_position -= 20
+    c.setFont("Helvetica", 12)
+
+    # Analyze user inputs and provide insights
+    avg_airport_footfall = df[df["airport"] == selected_airport]["actual_footfall"].mean()
+    context_analysis = (
+        f"For {selected_airport}, the predicted footfall of {predicted_footfall:,.0f} passengers is "
+        f"{'above' if predicted_footfall > avg_airport_footfall else 'below'} the historical average of {avg_airport_footfall:,.0f} passengers. "
+        f"Given that you selected a {selected_weekday.lower()} during {selected_season} with {selected_weather.lower()} weather, "
+        f"{'and considering it is a peak season' if selected_peak_season == 'Yes' else ''} "
+        f"{'and a holiday period' if selected_holiday == 'Yes' else ''}, "
+        f"the demand for airport services is expected to be "
+        f"{'significantly high' if (selected_weekday == 'Weekend' or selected_peak_season == 'Yes' or selected_holiday == 'Yes') else 'moderate'}. "
+        f"The temperature of {selected_temperature}°C may {'increase passenger comfort, potentially boosting footfall' if 15 <= selected_temperature <= 25 else 'deter passengers due to extreme weather'}. "
+        f"The choice of {selected_flight_type.lower()} flights and {selected_passenger_class.lower()} class suggests a focus on "
+        f"{'cost-conscious travelers' if selected_passenger_class == 'Economy' else 'premium travelers willing to pay for enhanced services'}."
+    )
+    y_position = draw_wrapped_text(c, context_analysis, 100, y_position, 400, 15)
+
+    # Check if we need a new page
+    if y_position < 100:
+        c.showPage()
+        y_position = 750
+        c.setFont("Helvetica", 12)
+
+    # Section: Conclusion
+    y_position -= 20
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(100, y_position, "Conclusion")
+    y_position -= 20
+    c.setFont("Helvetica", 12)
+
+    conclusion_text = (
+        f"This report highlights a predicted footfall of {predicted_footfall:,.0f} passengers for {selected_airport} under the specified conditions. "
+        f"The insights provided can help optimize airport operations, improve passenger experience, and maximize revenue. "
+        f"For further analysis or custom predictions, please contact the Syncro team."
+    )
+    y_position = draw_wrapped_text(c, conclusion_text, 100, y_position, 400, 15)
 
     # Finalize the PDF
     c.showPage()
@@ -310,7 +486,7 @@ if all(col in df_encoded.columns for col in features + [target]):
 
     # Add PDF download button
     st.download_button(
-        label="Download Predictions as PDF",
+        label="Download Detailed Report as PDF",
         data=pdf_buffer,
         file_name=f"footfall_predictions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
         mime="application/pdf"
