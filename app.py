@@ -4,10 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV  # Added GridSearchCV
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from io import BytesIO, StringIO  # Updated import to include StringIO
+from io import BytesIO, StringIO
 from datetime import datetime
 try:
     from reportlab.lib.pagesizes import letter
@@ -115,9 +115,53 @@ if all(col in df_encoded.columns for col in features + [target]):
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # Train RandomForestRegressor
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
+    # Define the parameter grid for hyperparameter tuning
+    param_grid = {
+        'n_estimators': [50, 100, 200],
+        'max_depth': [None, 10, 20, 30],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4],
+        'max_features': ['auto', 'sqrt', 'log2']
+    }
+
+    # Initialize the RandomForestRegressor
+    base_model = RandomForestRegressor(random_state=42)
+
+    # Set up GridSearchCV with 5-fold cross-validation
+    try:
+        grid_search = GridSearchCV(
+            estimator=base_model,
+            param_grid=param_grid,
+            cv=5,
+            scoring='neg_mean_squared_error',
+            n_jobs=-1,
+            verbose=1
+        )
+
+        # Fit the model with hyperparameter tuning
+        grid_search.fit(X_train, y_train)
+
+        # Get the best model
+        model = grid_search.best_estimator_
+
+        # Display the best hyperparameters
+        st.write("### Best Hyperparameters from GridSearchCV:")
+        st.write(grid_search.best_params_)
+
+        # Evaluate the model on the test set
+        y_pred = model.predict(X_test)
+        mae = mean_absolute_error(y_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+
+        st.write("### Model Performance on Test Set:")
+        st.write(f"Mean Absolute Error (MAE): {mae:,.2f}")
+        st.write(f"Mean Squared Error (MSE): {mse:,.2f}")
+        st.write(f"R² Score: {r2:.4f}")
+
+    except Exception as e:
+        st.error(f"Error during hyperparameter tuning: {str(e)}")
+        st.stop()
 
     # Predict for user input
     input_data = pd.DataFrame({
@@ -166,7 +210,7 @@ if all(col in df_encoded.columns for col in features + [target]):
     for class_type, proportion in class_distribution.items():
         fare = base_fare * fare_multipliers[class_type]
         weighted_fare += fare * proportion
-    adjusted_fare = weighted_fare * (1 + (fare_multipliers[selected_passenger_class] - 1) * 0.3)  # Adjust based on selected class
+    adjusted_fare = weighted_fare * (1 + (fare_multipliers[selected_passenger_class] - 1) * 0.3)
 
     # Convert to INR
     exchange_rate = 83  # 1 USD = 83 INR
@@ -182,7 +226,7 @@ if all(col in df_encoded.columns for col in features + [target]):
 
     # Calculate average revenue for comparison
     avg_footfall = df["actual_footfall"].mean()
-    avg_revenue_usd = avg_footfall * adjusted_fare  # Using the same adjusted_fare as for predicted revenue
+    avg_revenue_usd = avg_footfall * adjusted_fare
     avg_revenue_inr = avg_revenue_usd * exchange_rate
 
     # Display a bar graph comparing average vs predicted revenue
@@ -207,7 +251,7 @@ if all(col in df_encoded.columns for col in features + [target]):
     future_year = st.slider("Select a future year to predict footfall:", min_value=2025, max_value=2035, step=1, value=2030)
 
     # Calculate future footfall using a 3.8% annual growth rate
-    base_footfall = predicted_footfall  # 2024 predicted footfall
+    base_footfall = predicted_footfall
     growth_rate = 0.038  # 3.8% annual growth rate (IATA)
     years_range = range(2024, future_year + 1)
     future_footfalls = [base_footfall * (1 + growth_rate) ** (year - 2024) for year in years_range]
@@ -263,58 +307,79 @@ if all(col in df_encoded.columns for col in features + [target]):
 
     # Export Predictions
     st.subheader("Export Predictions")
-    export_data = pd.DataFrame({
-        "Predicted Footfall": [predicted_footfall],
-        "Confidence Interval (plus or minus)": [confidence_interval],
-        "Estimated Revenue (INR)": [revenue_inr],
-        "Future Year": [future_year],
-        "Future Predicted Footfall": [future_predicted_footfall]
-    })
-    
-    # CSV Download
-    csv_buffer = StringIO()  # Updated to use StringIO directly
-    export_data.to_csv(csv_buffer, index=False)
-    st.download_button(
-        label="Download Predictions as CSV",
-        data=csv_buffer.getvalue(),
-        file_name=f"footfall_predictions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-        mime="text/csv"
-    )
 
-    # PDF Download
-    pdf_buffer = BytesIO()
-    c = canvas.Canvas(pdf_buffer, pagesize=letter)
-    c.setFont("Helvetica", 12)
+    # Ensure all required variables are defined
+    required_vars = {
+        "Predicted Footfall": predicted_footfall,
+        "Confidence Interval (plus or minus)": confidence_interval,
+        "Estimated Revenue (INR)": revenue_inr,
+        "Future Year": future_year,
+        "Future Predicted Footfall": future_predicted_footfall
+    }
+    missing_vars = [var for var, value in required_vars.items() if value is None]
+    if missing_vars:
+        st.error(f"Cannot generate export: the following variables are not defined: {', '.join(missing_vars)}")
+    else:
+        export_data = pd.DataFrame({
+            "Predicted Footfall": [predicted_footfall],
+            "Confidence Interval (plus or minus)": [confidence_interval],
+            "Estimated Revenue (INR)": [revenue_inr],
+            "Future Year": [future_year],
+            "Future Predicted Footfall": [future_predicted_footfall]
+        })
+        
+        # CSV Download
+        csv_buffer = StringIO()
+        export_data.to_csv(csv_buffer, index=False)
+        st.download_button(
+            label="Download Predictions as CSV",
+            data=csv_buffer.getvalue(),
+            file_name=f"footfall_predictions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv"
+        )
 
-    # Add title
-    c.drawString(100, 750, "Airport Footfall Prediction Report")
+        # PDF Download
+        try:
+            pdf_buffer = BytesIO()
+            c = canvas.Canvas(pdf_buffer, pagesize=letter)
+            c.setFont("Helvetica", 12)
 
-    # Add prediction data
-    y_position = 700
-    c.drawString(100, y_position, f"Predicted Footfall: {predicted_footfall:,.0f}")
-    y_position -= 20
-    c.drawString(100, y_position, f"Confidence Interval (plus or minus): {confidence_interval:,.0f}")
-    y_position -= 20
-    c.drawString(100, y_position, f"Estimated Revenue (INR): {revenue_inr:,.2f}")
-    y_position -= 20
-    c.drawString(100, y_position, f"Future Year: {future_year}")
-    y_position -= 20
-    c.drawString(100, y_position, f"Future Predicted Footfall: {future_predicted_footfall:,.0f}")
+            # Add title
+            c.drawString(100, 750, "Airport Footfall Prediction Report")
 
-    # Finalize the PDF
-    c.showPage()
-    c.save()
+            # Add prediction data
+            y_position = 700
+            c.drawString(100, y_position, f"Predicted Footfall: {predicted_footfall:,.0f}")
+            y_position -= 20
+            c.drawString(100, y_position, f"Confidence Interval (plus or minus): {confidence_interval:,.0f}")
+            y_position -= 20
+            c.drawString(100, y_position, f"Estimated Revenue (INR): {revenue_inr:,.2f}")
+            y_position -= 20
+            c.drawString(100, y_position, f"Future Year: {future_year}")
+            y_position -= 20
+            c.drawString(100, y_position, f"Future Predicted Footfall: {future_predicted_footfall:,.0f}")
 
-    # Move the buffer position to the beginning
-    pdf_buffer.seek(0)
+            # Finalize the PDF
+            c.showPage()
+            c.save()
 
-    # Add PDF download button
-    st.download_button(
-        label="Download Predictions as PDF",
-        data=pdf_buffer,
-        file_name=f"footfall_predictions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-        mime="application/pdf"
-    )
+            # Move the buffer position to the beginning
+            pdf_buffer.seek(0)
+
+            # Verify the buffer has content
+            pdf_content = pdf_buffer.getvalue()
+            if len(pdf_content) == 0:
+                st.error("Failed to generate PDF: The PDF file is empty.")
+            else:
+                # Add PDF download button
+                st.download_button(
+                    label="Download Predictions as PDF",
+                    data=pdf_buffer,
+                    file_name=f"footfall_predictions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf"
+                )
+        except Exception as e:
+            st.error(f"Error generating PDF: {str(e)}")
 
 else:
     st.sidebar.error("Missing columns required for model training.")
