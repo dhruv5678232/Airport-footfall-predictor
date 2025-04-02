@@ -65,7 +65,7 @@ mean_load_factor = df["load_factor"].mean()
 mean_economic_trend = df["economic_trend"].mean()
 
 # Streamlit UI
-st.title("Airport Footfall Prediction and Analysis")
+st.title("AeroPredict Solutions - Airport Footfall Prediction and Analysis")
 st.sidebar.header("Input Parameters for Prediction")
 
 # User inputs
